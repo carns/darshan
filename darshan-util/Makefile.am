@@ -21,7 +21,8 @@ libdarshan_util_la_SOURCES = darshan-null-logutils.c \
                              darshan-stdio-logutils.c \
                              darshan-dxt-logutils.c \
                              darshan-heatmap-logutils.c \
-                             darshan-mdhim-logutils.c
+                             darshan-mdhim-logutils.c \
+			     darshan-logutils-accumulator.c
 
 include_HEADERS = darshan-null-logutils.h \
                   darshan-logutils.h \
