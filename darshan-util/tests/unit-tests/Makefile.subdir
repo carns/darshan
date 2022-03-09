@@ -1,0 +1,12 @@
+check_PROGRAMS += \
+ tests/unit-tests/darshan-accumulator
+
+TESTS += \
+ tests/unit-tests/darshan-accumulator
+
+tests_unit_tests_darshan_accumulator_SOURCES = \
+ tests/unit-tests/darshan-accumulator.c \
+ tests/unit-tests/munit/munit.c
+
+noinst_HEADERS += \
+ tests/unit-tests/munit/munit.h

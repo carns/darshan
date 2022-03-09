@@ -140,3 +140,10 @@ install-exec-hook:
 endif
 
 .PHONY: clean-local-check
+
+TESTS =
+XFAIL_TESTS =
+check_PROGRAMS =
+noinst_HEADERS =
+
+include $(top_srcdir)/tests/unit-tests/Makefile.subdir
