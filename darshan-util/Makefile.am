@@ -147,3 +147,7 @@ check_PROGRAMS =
 noinst_HEADERS =
 
 include $(top_srcdir)/tests/unit-tests/Makefile.subdir
+
+# convenience rule for building test programs
+.phony: tests
+tests: $(check_PROGRAMS)
