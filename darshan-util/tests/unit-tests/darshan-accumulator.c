@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2022 University of Chicago.
+ * See COPYRIGHT notice in top-level directory.
+ *
+ */
 
 #include <stdio.h>
 #include "munit/munit.h"
