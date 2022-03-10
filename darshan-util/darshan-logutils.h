@@ -315,14 +315,14 @@ struct darshan_derived_metrics {
 #endif
 };
 
-/* Emit derived metrics _and_ a summation record from an accumulator.
- * The summation_record uses the same format as the normal records for the
+/* Emit derived metrics _and_ a combined aggregate record from an accumulator.
+ * The aggregation_record uses the same format as the normal records for the
  * module, but values are set to reflect summations across all accumulated
  * records.
  */
 int darshan_accumulator_emit(darshan_accumulator             accumulator,
                              struct darshan_derived_metrics* metrics,
-                             void**                          summation_record);
+                             void*                           aggregation_record);
 
 /* frees resources associated with an accumulator */
 int darshan_accumulator_destroy(darshan_accumulator accumulator);

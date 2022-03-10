@@ -15,6 +15,7 @@
 struct darshan_accumulator_st {
     darshan_module_id module_id;
     void* total_record;
+    int num_records;
 };
 
 int darshan_accumulator_create(darshan_module_id id,
@@ -34,12 +35,18 @@ int darshan_accumulator_inject(darshan_accumulator accumulator,
                                void*               record_array,
                                int                 record_count)
 {
+    int i;
+
+    for(i=0; i<record_count; i++) {
+
+    }
+
     return(-1);
 }
 
 int darshan_accumulator_emit(darshan_accumulator             accumulator,
                              struct darshan_derived_metrics* metrics,
-                             void**                          summation_record)
+                             void*                           summation_record)
 {
     return(-1);
 }
