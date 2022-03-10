@@ -45,17 +45,11 @@ int darshan_accumulator_inject(darshan_accumulator acc,
     int i;
     void* new_record = record_array;
 
-    if(!mod_logutils[acc->module_id]->log_agg_records) {
+    if(!mod_logutils[acc->module_id]->log_agg_records ||
+       !mod_logutils[acc->module_id]->log_sizeof_record) {
         /* this module doesn't support this operation */
         return(-1);
     }
-
-    /* TODO: we need a per-module API hook that for a given record pointer
-     * can calculate it's size, so that a) we can iterate through records
-     * safely even if they may contain packed variable-length fields and b)
-     * we don't introduce module-specific logic at this level.
-     */
-    assert(record_count == 1);
 
     for(i=0; i<record_count; i++) {
         if(acc->num_records == 0)
@@ -64,9 +58,8 @@ int darshan_accumulator_inject(darshan_accumulator acc,
             mod_logutils[acc->module_id]->log_agg_records(new_record, acc->agg_record, 0);
         acc->num_records++;
 
-        /* TODO: increment new_record, using hypothetical fn described in
-         * previous comment
-         */
+        /* advance to next record */
+        new_record += mod_logutils[acc->module_id]->log_sizeof_record(new_record);
     }
 
     return(0);
@@ -76,12 +69,7 @@ int darshan_accumulator_emit(darshan_accumulator             acc,
                              struct darshan_derived_metrics* metrics,
                              void*                           summation_record)
 {
-    /* TODO: here we should also use module-specific record size calculation
-     * fn to make sure we don't overrun the summation_record, in case the
-     * caller is using something smaller than the conservative default
-     * value.
-     */
-    memcpy(summation_record, acc->agg_record, DEF_MOD_BUF_SIZE);
+    memcpy(summation_record, acc->agg_record, mod_logutils[acc->module_id]->log_sizeof_record(acc->agg_record));
     return(0);
 }
 

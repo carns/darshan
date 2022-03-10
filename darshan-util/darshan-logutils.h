@@ -147,6 +147,11 @@ struct darshan_mod_logutil_funcs
         void *agg_rec,
         int init_flag
     );
+    /* report the true size of the record, including variable-length data if
+     * present
+     */
+    int (*log_sizeof_record)(
+        void *rec);
 };
 
 extern struct darshan_mod_logutil_funcs *mod_logutils[];
