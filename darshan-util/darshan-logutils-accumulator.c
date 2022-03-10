@@ -45,6 +45,11 @@ int darshan_accumulator_inject(darshan_accumulator acc,
     int i;
     void* new_record = record_array;
 
+    if(!mod_logutils[acc->module_id]->log_agg_records) {
+        /* this module doesn't support this operation */
+        return(-1);
+    }
+
     /* TODO: we need a per-module API hook that for a given record pointer
      * can calculate it's size, so that a) we can iterate through records
      * safely even if they may contain packed variable-length fields and b)
