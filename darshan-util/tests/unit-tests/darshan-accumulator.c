@@ -16,6 +16,7 @@
 #define MODULE_ID_LIMIT 15
 
 static void posix_set_dummy_record(void* buffer);
+static void posix_validate_double_dummy_record(void* buffer, int shared_file_flag);
 
 void (*set_dummy_fn[MODULE_ID_LIMIT])(void*) = {
     NULL, /* DARSHAN_NULL_MOD */
@@ -34,6 +35,25 @@ void (*set_dummy_fn[MODULE_ID_LIMIT])(void*) = {
     NULL, /* DARSHAN_APMPI_MOD */
     NULL /* DARSHAN_HEATMAP_MOD */
 };
+
+void (*validate_double_dummy_fn[MODULE_ID_LIMIT])(void*, int) = {
+    NULL, /* DARSHAN_NULL_MOD */
+    posix_validate_double_dummy_record, /* DARSHAN_POSIX_MOD */
+    NULL, /* DARSHAN_MPIIO_MOD */
+    NULL, /* DARSHAN_H5F_MOD */
+    NULL, /* DARSHAN_H5D_MOD */
+    NULL, /* DARSHAN_PNETCDF_MOD */
+    NULL, /* DARSHAN_BGQ_MOD */
+    NULL, /* DARSHAN_LUSTRE_MOD */
+    NULL, /* DARSHAN_STDIO_MOD */
+    NULL, /* DXT_POSIX_MOD */
+    NULL, /* DXT_MPIIO_MOD */
+    NULL, /* DARSHAN_MDHIM_MOD */
+    NULL, /* DARSHAN_APXC_MOD */
+    NULL, /* DARSHAN_APMPI_MOD */
+    NULL /* DARSHAN_HEATMAP_MOD */
+};
+
 
 struct test_context {
     darshan_module_id mod_id;
@@ -84,6 +104,7 @@ static MunitResult inject_shared_file_records(const MunitParameter params[], voi
     void* record1;
     void* record2;
     void* record_agg;
+    struct darshan_base_record* base_rec;
 
     record1 = malloc(DEF_MOD_BUF_SIZE);
     munit_assert_not_null(record1);
@@ -95,21 +116,53 @@ static MunitResult inject_shared_file_records(const MunitParameter params[], voi
     /* make sure we have a function defined to set example records */
     munit_assert_not_null(set_dummy_fn[ctx->mod_id]);
 
+    /* create example records, shared file but different ranks */
+    set_dummy_fn[ctx->mod_id](record1);
+    set_dummy_fn[ctx->mod_id](record2);
+    base_rec = record2;
+    base_rec->rank++;
+
+    /**** shared file aggregation ****/
+
     ret = darshan_accumulator_create(ctx->mod_id, &acc);
     munit_assert_int(ret, ==, 0);
 
     /* inject two example records */
-    set_dummy_fn[ctx->mod_id](record1);
     ret = darshan_accumulator_inject(acc, record1, 1);
     munit_assert_int(ret, ==, 0);
-
-    set_dummy_fn[ctx->mod_id](record2);
-    ret = darshan_accumulator_inject(acc, record1, 2);
+    ret = darshan_accumulator_inject(acc, record1, 1);
     munit_assert_int(ret, ==, 0);
 
     /* emit results */
     ret = darshan_accumulator_emit(acc, &metrics, record_agg);
     munit_assert_int(ret, ==, 0);
+
+    /* sanity check */
+    validate_double_dummy_fn[ctx->mod_id](record_agg, 1);
+
+    ret = darshan_accumulator_destroy(acc);
+    munit_assert_int(ret, ==, 0);
+
+    /**** unique file aggregation ****/
+
+    /* change id hash in one record and repeat test case */
+    base_rec->id++;
+
+    ret = darshan_accumulator_create(ctx->mod_id, &acc);
+    munit_assert_int(ret, ==, 0);
+
+    /* inject two example records */
+    ret = darshan_accumulator_inject(acc, record1, 1);
+    munit_assert_int(ret, ==, 0);
+    ret = darshan_accumulator_inject(acc, record1, 1);
+    munit_assert_int(ret, ==, 0);
+
+    /* emit results */
+    ret = darshan_accumulator_emit(acc, &metrics, record_agg);
+    munit_assert_int(ret, ==, 0);
+
+    /* sanity check */
+    validate_double_dummy_fn[ctx->mod_id](record_agg, 0);
 
     ret = darshan_accumulator_destroy(acc);
     munit_assert_int(ret, ==, 0);
@@ -242,6 +295,48 @@ static void posix_set_dummy_record(void* buffer) {
     pfile->fcounters[POSIX_F_SLOWEST_RANK_TIME] = 0.040990;
     pfile->fcounters[POSIX_F_VARIANCE_RANK_TIME] = 0.000090;
     pfile->fcounters[POSIX_F_VARIANCE_RANK_BYTES] = 0.000000;
+
+    return;
+}
+
+/* Validate that the aggregation produced sane values after being used to
+ * aggregate 2 rank records for the same file.
+ */
+static void posix_validate_double_dummy_record(void* buffer, int shared_file_flag) {
+    struct darshan_posix_file* pfile = buffer;
+
+    /* This function must be updated (or at least checked) if the posix
+     * module log format changes
+     */
+    munit_assert_int(DARSHAN_POSIX_VER, ==, 4);
+
+    /* check base record */
+    if(shared_file_flag)
+        munit_assert_int64(pfile->base_rec.id, ==, 15574190512568163195UL);
+    else
+        munit_assert_int64(pfile->base_rec.id, ==, 0);
+    munit_assert_int64(pfile->base_rec.rank, ==, -1);
+
+    /* double */
+    munit_assert_int64(pfile->counters[POSIX_OPENS], ==, 32);
+    /* stay set at -1 */
+    munit_assert_int64(pfile->counters[POSIX_MMAPS], ==, -1);
+    /* stay set */
+    munit_assert_int64(pfile->counters[POSIX_MODE], ==, 436);
+
+    /* "fastest" behavior should change depending on if records are shared
+     * or not
+     */
+    if(shared_file_flag)
+        munit_assert_int64(pfile->counters[POSIX_FASTEST_RANK], ==, 2);
+    else
+        munit_assert_int64(pfile->counters[POSIX_FASTEST_RANK], ==, -1);
+
+    /* double */
+    munit_assert_int64(pfile->fcounters[POSIX_F_READ_TIME], ==, .060774);
+
+    /* variance should be cleared right now */
+    munit_assert_int64(pfile->fcounters[POSIX_F_VARIANCE_RANK_TIME], ==, 0);
 
     return;
 }
